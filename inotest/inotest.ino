@@ -34,7 +34,7 @@
 #define TFT_BLK     2
 #define BUT_0       26
 
-#define connectQT 2 //不连接为0 连接为1 mqtt为2
+#define connectQT 2
 
 const char* MQTT_SERVER = "mqtts.heclouds.com";
 const int MQTT_PORT = 1883;
@@ -69,20 +69,20 @@ const float DEN[5] = {
 };
 /*********************************/
 
-const char *ssid = "iphone";//wifi热点名字
-const char *password = "jyh888777";//wifi热点密码
+const char *ssid = "ssid";
+const char *password = "psd";
 
-const IPAddress serverIP(172,20,10,2); //欲访问的地址
-uint16_t serverPort = 8888;         //服务器端口号
+const IPAddress serverIP(172,20,10,2); 
+uint16_t serverPort = 8888;        
 
 //const char* ntpServer = "cn.pool.ntp.org";
-const char* ntpServer = "ntp.aliyun.com";//北京时间
+const char* ntpServer = "ntp.aliyun.com";
 const long  Offset_sec = 28800;
 const int   daylightOffset_sec = 0;
 
 
 static int i=0 , ecg_dis_cout = 0 ,ecg_bpm_dis = 0;
-uint8_t wififlag = 0;//网络连接
+uint8_t wififlag = 0;
 
 uint8_t TEMPflag = 1 ,LCDflag = 1 ,NTPflag = 0 , ECG_disflag = 0;
 float temp_ambient = 0,temp_object = 0;
@@ -106,7 +106,7 @@ void setup()
     if(connectQT != 0)
     {
       WiFi.mode(WIFI_STA);
-      WiFi.setSleep(false); //关闭STA模式下wifi休眠，提高响应速度
+      WiFi.setSleep(false); 
       WiFi.begin(ssid, password);
       while (WiFi.status() != WL_CONNECTED)//
         {
@@ -118,7 +118,7 @@ void setup()
       Serial.println(WiFi.localIP());
       if(!AutoConfig())
       {
-        SmartConfig();//配网
+        SmartConfig();
       }
     } else{
       wififlag = 1;
@@ -145,16 +145,16 @@ void setup()
     
     WiFi.setTxPower(WIFI_POWER_5dBm);
     Serial.println(WiFi.getTxPower());
-    xTaskCreatePinnedToCore(getADTask,"getADTask",2048,NULL,1,NULL,0);//最后的0代表cpu核心1，一共双核
+    xTaskCreatePinnedToCore(getADTask,"getADTask",2048,NULL,1,NULL,0);
     xTaskCreatePinnedToCore(LCDTask,"LCDTask",2048,NULL,2,NULL,1);
     if(connectQT == 1)
     {
-      xTaskCreatePinnedToCore(socketTask,"socketTask",2560,NULL,1,NULL,0);//网络连接，单片机单独运行
+      xTaskCreatePinnedToCore(socketTask,"socketTask",2560,NULL,1,NULL,0);
     }
     else if(connectQT == 2)
     {
       
-       xTaskCreatePinnedToCore(mqttTask,"mqttTask",4096,NULL,1,NULL,0);//mqtt连接，单片机单独运行
+       xTaskCreatePinnedToCore(mqttTask,"mqttTask",4096,NULL,1,NULL,0);
       
     }
 
@@ -176,9 +176,9 @@ void getADTask(void *parameter){
   for(;;){
     while(wififlag){
       ad_time = micros();
-      vTaskDelayUntil(&lasttick, 5);//5ms执行一次
+      vTaskDelayUntil(&lasttick, 5);
       analog_value = analogRead(ECG_PIN_0);
-      analog_value = filter_low_40(analog_value)/35;//40Hz低通滤波
+      analog_value = filter_low_40(analog_value)/35;
       xQueueSend(queueAD_TCP,&analog_value,0);
       if(++ad_cout>=5&&ECG_disflag == 0){
         ad_cout = 0;
@@ -206,14 +206,14 @@ void socketTask(void *parameter){
   char str_out[250] = {0};
   char str_in[10] = {0};
   for(;;){
-    if (client.connect(serverIP, serverPort)) //尝试访问目标地址
+    if (client.connect(serverIP, serverPort)) 
     {
 //        Serial.println("访问成功");
         TickType_t lasttick = xTaskGetTickCount();
-        while (client.connected() || client.available()) //如果已连接或有收到的未读取的数据
+        while (client.connected() || client.available()) 
         {
             tcp_time = micros();
-            vTaskDelayUntil(&lasttick, 5);//100ms发送一次数据
+            vTaskDelayUntil(&lasttick, 5);
             wififlag = 1;
             if(AD_cout<20){
               xQueueReceive(queueAD_TCP,&AD_value,0);
@@ -231,12 +231,12 @@ void socketTask(void *parameter){
             Serial.printf("get tcp time:%d\r\n",tcp_time);
         }
         wififlag = 0;
-        client.stop(); //关闭客户端
+        client.stop(); 
     }
     else
     {
 //        Serial.println("访问失败");
-        client.stop(); //关闭客户端
+        client.stop(); 
     }
     vTaskDelay(20);
   }
@@ -262,7 +262,6 @@ void Send(unsigned char val1, unsigned char val2, unsigned char val3, unsigned c
         return;
     }
     
-    // 先拼接出json字符串
     char param[82];
     char jsonBuf[178];
     
@@ -272,7 +271,6 @@ void Send(unsigned char val1, unsigned char val2, unsigned char val3, unsigned c
     postMsgId += 1;
     snprintf(jsonBuf, sizeof(jsonBuf), ONENET_POST_BODY_FORMAT, postMsgId, param);
     
-    // 发布消息
     if (MqttClient.publish(ONENET_TOPIC_PROP_POST, jsonBuf)) {
         Serial.print("Post message to cloud: ");
         Serial.println(jsonBuf);
@@ -288,7 +286,6 @@ void mqttTask(void *parameter)
     unsigned int Ad_value = 0;
     unsigned long lastReconnectAttempt = 0;
     
-    // 等待WiFi连接
     while (WiFi.status() != WL_CONNECTED) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
@@ -301,13 +298,12 @@ void mqttTask(void *parameter)
         // 检查MQTT连接状态
         if (!MqttClient.connected()) {
             unsigned long now = millis();
-            if (now - lastReconnectAttempt > 5000) {  // 每5秒尝试重连一次
+            if (now - lastReconnectAttempt > 5000) {  
                 lastReconnectAttempt = now;
                 Serial.println("MQTT disconnected, attempting to reconnect...");
                 reconnectMQTT();
             }
         } else {
-            // MQTT已连接，处理数据
             // vTaskDelayUntil(&lasttick, 15);
             while(AdCount<10)
             {
@@ -336,7 +332,7 @@ void LCDTask(void *parameter){
     uint8_t clearflag = 0;
     for(;;){
       TickType_t lasttick = xTaskGetTickCount();
-      while (LCDflag) //尝试访问目标地址
+      while (LCDflag) 
       {
           lcd_time = micros();
           vTaskDelayUntil(&lasttick, 100);
@@ -401,13 +397,13 @@ void LCDTask(void *parameter){
             temp_cout = 0;
           }
 
-          if (client.available()) //如果有数据可读取
+          if (client.available()) 
             {
-                String line = client.readStringUntil('\n'); //读取数据到换行符
+                String line = client.readStringUntil('\n'); 
                 ecg_bpm_dis = line.toInt();
                 Serial.print("读取到数据：");
                 Serial.println(ecg_bpm_dis);
-//                client.write(line.c_str()); //将收到的数据回发
+//                client.write(line.c_str()); 
             }
           if(ecg_bpm_dis != 0)
           { 
@@ -491,7 +487,7 @@ void SmartConfig()
         Serial.print(WiFi.localIP());
         Serial.print(" ,GateIP:");
         Serial.println(WiFi.gatewayIP());
-        WiFi.setAutoReconnect(true);  // 设置自动连接
+        WiFi.setAutoReconnect(true); 
         break;
         }
         delay(1000);
@@ -525,7 +521,7 @@ bool AutoConfig()
 }
 
 
-bool printLocalTime()//获取网络时间
+bool printLocalTime()
 {
   struct tm timeinfo;
   char NTPdate[20]={0},NTPtime[3]={0};
@@ -539,8 +535,8 @@ bool printLocalTime()//获取网络时间
 //    Serial.printf("week %s",timeinfo.tm_wday);
     if(NTPflag == 0){
       sprintf(NTPdate,"%04d-%02d-%02d",timeinfo.tm_year+1900,timeinfo.tm_mon+1,timeinfo.tm_mday);
-      printText(0,128-8, NTPdate,ST77XX_WHITE,1);//日期
-      printText(0,128-16, NTPweek[timeinfo.tm_wday],ST77XX_WHITE,1);//星期
+      printText(0,128-8, NTPdate,ST77XX_WHITE,1);
+      printText(0,128-16, NTPweek[timeinfo.tm_wday],ST77XX_WHITE,1);
       printText(160-96,128-16,"  :  :  ",ST77XX_WHITE,2);
       NTPflag = 1;
     }
